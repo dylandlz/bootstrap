@@ -1,5 +1,9 @@
+import {
+  fire,
+  on
+} from 'delegated-events'
+
 import Data from './dom/data'
-import EventHandler from './dom/eventHandler'
 import SelectorEngine from './dom/selectorEngine'
 import Util from './util'
 
@@ -21,16 +25,18 @@ const Alert = (() => {
   const VERSION             = '4.1.3'
   const DATA_KEY            = 'bs.alert'
   const EVENT_KEY           = `.${DATA_KEY}`
-  const DATA_API_KEY        = '.data-api'
 
   const Selector = {
     DISMISS : '[data-dismiss="alert"]'
   }
 
+  const InternalEvent = {
+    CLICK_DATA_API : 'click'
+  }
+
   const Event = {
     CLOSE          : `close${EVENT_KEY}`,
-    CLOSED         : `closed${EVENT_KEY}`,
-    CLICK_DATA_API : `click${EVENT_KEY}${DATA_API_KEY}`
+    CLOSED         : `closed${EVENT_KEY}`
   }
 
   const ClassName = {
@@ -69,7 +75,7 @@ const Alert = (() => {
 
       const customEvent = this._triggerCloseEvent(rootElement)
 
-      if (customEvent === null || customEvent.defaultPrevented) {
+      if (!customEvent) {
         return
       }
 
@@ -99,7 +105,7 @@ const Alert = (() => {
     }
 
     _triggerCloseEvent(element) {
-      return EventHandler.trigger(element, Event.CLOSE)
+      return fire(element, Event.CLOSE)
     }
 
     _removeElement(element) {
@@ -112,8 +118,12 @@ const Alert = (() => {
 
       const transitionDuration = Util.getTransitionDurationFromElement(element)
 
-      EventHandler
-        .one(element, Util.TRANSITION_END, (event) => this._destroyElement(element, event))
+      const onTransitionEnd = (event) => {
+        this._destroyElement(element, event)
+        element.removeEventListener(Util.TRANSITION_END, onTransitionEnd)
+      }
+
+      element.addEventListener(Util.TRANSITION_END, onTransitionEnd)
       Util.emulateTransitionEnd(element, transitionDuration)
     }
 
@@ -121,7 +131,8 @@ const Alert = (() => {
       if (element.parentNode) {
         element.parentNode.removeChild(element)
       }
-      EventHandler.trigger(element, Event.CLOSED)
+
+      fire(element, Event.CLOSED)
     }
 
     // Static
@@ -160,8 +171,7 @@ const Alert = (() => {
    * Data Api implementation
    * ------------------------------------------------------------------------
    */
-  EventHandler
-    .on(document, Event.CLICK_DATA_API, Selector.DISMISS, Alert._handleDismiss(new Alert()))
+  on(InternalEvent.CLICK_DATA_API, Selector.DISMISS, Alert._handleDismiss(new Alert()))
 
   /**
    * ------------------------------------------------------------------------
